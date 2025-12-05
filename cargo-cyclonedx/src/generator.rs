@@ -166,7 +166,7 @@ impl SbomGenerator {
 
             let generated = GeneratedSbom {
                 bom,
-                manifest_path,
+                output_path: manifest_path,
                 package_name: packages[member].name.clone(),
                 sbom_config: generator.config,
                 target_kinds,
@@ -794,14 +794,14 @@ fn filtered_dependencies<'a>(
 /// Contains a generated SBOM and context used in its generation
 ///
 /// * `bom` - Generated SBOM
-/// * `manifest_path` - Folder containing the `Cargo.toml` manifest
+/// * `output_path` - Folder containing the `Cargo.toml` manifest
 /// * `package_name` - Package from which this SBOM was generated
 /// * `sbom_config` - Configuration options used during generation
 /// * `target_kinds` - Detailed information on the kinds of targets in `sbom`
 #[derive(Debug)]
 pub struct GeneratedSbom {
     pub bom: Bom,
-    pub manifest_path: PathBuf,
+    pub output_path: PathBuf,
     pub package_name: String,
     pub sbom_config: SbomConfig,
     pub target_kinds: TargetKinds,
@@ -812,7 +812,7 @@ impl GeneratedSbom {
     pub fn write_to_files(self) -> Result<(), SbomWriterError> {
         match self.sbom_config.describe.unwrap_or_default() {
             Describe::Crate => {
-                let path = self.manifest_path.with_file_name(self.filename(None, &[]));
+                let path = self.output_path.with_file_name(self.filename(None, &[]));
                 Self::write_to_file(self.bom, &path, &self.sbom_config)
             }
             pattern @ (Describe::Binaries | Describe::AllCargoTargets) => {
@@ -821,8 +821,9 @@ impl GeneratedSbom {
                 {
                     let meta = sbom.metadata.as_ref().unwrap();
                     let name = meta.component.as_ref().unwrap().name.as_ref();
+                    log::debug!("[{name}] Output @ '{}'", self.output_path.display());
                     let path = self
-                        .manifest_path
+                        .output_path
                         .with_file_name(self.filename(Some(name), &target_kind));
                     Self::write_to_file(sbom, &path, &self.sbom_config)?;
                 }
